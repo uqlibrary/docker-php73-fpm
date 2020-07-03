@@ -8,7 +8,7 @@ ENV NEWRELIC_VERSION=9.11.0.267
 ENV PHP_MEMCACHED_VERSION=3.1.5
 ENV NR_INSTALL_SILENT=1
 ENV NR_INSTALL_PHPLIST=/usr/bin
-ENV BUILD_DEPS file re2c autoconf make g++ gcc groff less php7-dev libmemcached-dev cyrus-sasl-dev zlib-dev musl pcre-dev
+ENV BUILD_DEPS file re2c autoconf make g++ gcc groff php7-dev libmemcached-dev cyrus-sasl-dev zlib-dev musl pcre-dev
 
 COPY ./fs/docker-entrypoint.sh /usr/sbin/docker-entrypoint.sh
 
