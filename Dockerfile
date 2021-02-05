@@ -26,6 +26,9 @@ RUN apk add --update --no-cache \
         php7-pdo_dblib php7-curl php7-ctype php7-pcntl php7-posix php7-phar php7-opcache php7-mbstring php7-zlib \
         php7-fileinfo php7-tokenizer php7-sockets php7-phar php7-intl php7-pear php7-ldap php7-phpdbg php7-fpm php7 \
     #
+    # Add Postgresql Client
+    && apk add --update --no-cache postgresql-client \
+    #
     # Add media handling tools
     && apk add --update --no-cache exiftool mediainfo \
     #
