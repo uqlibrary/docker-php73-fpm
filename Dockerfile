@@ -1,62 +1,67 @@
-FROM uqlibrary/alpine:3.12.3
+FROM uqlibrary/centos:191030
 
-ENV COMPOSER_VERSION=2.0.9
-ENV NEWRELIC_VERSION=9.16.0.295
-ENV NR_INSTALL_SILENT=1
-ENV NR_INSTALL_PHPLIST=/usr/bin
-ENV BUILD_DEPS file re2c autoconf make g++ gcc groff php7-dev libmemcached-dev cyrus-sasl-dev zlib-dev musl pcre-dev
+ENV COMPOSER_VERSION=2.6.5
 
-COPY ./fs/docker-entrypoint.sh /usr/sbin/docker-entrypoint.sh
+RUN \
+  rpm -Uvh http://yum.newrelic.com/pub/newrelic/el5/x86_64/newrelic-repo-5-3.noarch.rpm && \
+  #Enable the ius testing and disable mirrors to ensure getting latest, not an out of date mirror
+  sed -i "s/mirrorlist/#mirrorlist/" /etc/yum.repos.d/ius-testing.repo && \
+  sed -i "s/#baseurl/baseurl/" /etc/yum.repos.d/ius-testing.repo
 
-RUN apk upgrade --update --no-cache && \
-    apk add --update --no-cache \
-        ca-certificates \
-        curl \
-        bash \
-        git sqlite mysql-client libmemcached
+RUN yum update -y && \
+  yum install -y http://rpms.remirepo.net/enterprise/remi-release-7.rpm && \
+  yum install -y yum-utils \
+  epel-release
 
-RUN apk add --update --no-cache \
-        php7-imap php7-mysqlnd php7-mbstring \
-        php7-session php7-mcrypt php7-soap php7-openssl php7-gmp php7-pdo_odbc php7-json php7-dom php7-pdo php7-zip \
-        php7-mysqli php7-sqlite3 php7-pdo_pgsql php7-bcmath php7-gd php7-odbc php7-pdo_mysql php7-pdo_sqlite \
-        php7-gettext php7-xmlreader php7-xmlwriter php7-xmlrpc php7-xml php7-simplexml php7-bz2 php7-iconv \
-        php7-pdo_dblib php7-curl php7-ctype php7-pcntl php7-posix php7-phar php7-opcache php7-mbstring php7-zlib \
-        php7-fileinfo php7-tokenizer php7-sockets php7-phar php7-intl php7-pear php7-ldap php7-phpdbg php7-fpm php7 \
-    #
-    # Add Postgresql Client
-    && apk add --update --no-cache postgresql-client \
-    #
-    # Add media handling tools
-    && apk add --update --no-cache exiftool mediainfo \
-    #
-    # Install XDebug, igbinary and memcached via PECL
-    && apk add --update --no-cache php7-pecl-xdebug php7-pecl-igbinary php7-pecl-memcached \
-    #
-    # Build deps
-    && apk add --no-cache --virtual .build-deps $BUILD_DEPS \
-    #
-    # Composer 2.x
-    && curl -sS https://getcomposer.org/installer | php7 -- --install-dir=/usr/bin --filename=composer --version=${COMPOSER_VERSION} \
-    #
-    # NewRelic (disabled by default)
-    #&& mkdir -p /opt && cd /opt \
-    #&& wget -q https://download.newrelic.com/php_agent/archive/${NEWRELIC_VERSION}/newrelic-php5-${NEWRELIC_VERSION}-linux-musl.tar.gz \
-    #&& tar -zxf newrelic-php5-${NEWRELIC_VERSION}-linux-musl.tar.gz \
-    #&& rm -f newrelic-php5-${NEWRELIC_VERSION}-linux-musl.tar.gz \
-    #&& ./newrelic-php5-${NEWRELIC_VERSION}-linux-musl/newrelic-install install \
-    #&& mv /etc/php7/conf.d/newrelic.ini /etc/newrelic.ini \
-    #
-    # Remove build deps
-    && rm -rf /var/cache/apk/* \
-    && apk del --purge .build-deps \
-    #
-    # Make scripts executable
-    && chmod +x /usr/sbin/docker-entrypoint.sh
+RUN yum-config-manager --disable remi-php54 && \
+    yum-config-manager --enable remi-php73
+
+RUN yum update -y && \
+    yum install -y \
+    php-common \
+    php-cli \
+    php-fpm \
+    php-gd \
+    php-imap \
+    php-ldap \
+    php-mcrypt \
+    php-mysqlnd \
+    php-pdo \
+    php-pecl-geoip \
+    php-pecl-memcached \
+    php-pecl-xdebug \
+    php-pecl-zip \
+    php-intl \
+    php-pgsql \
+    php-soap \
+    php-xmlrpc \
+    php-mbstring \
+    php-tidy \
+    php-opcache \
+    git \
+    newrelic-php5 \
+    newrelic-sysmond \
+    mysql \
+    telnet \
+    which && \
+  yum clean all
+
+
+RUN \
+  mkdir -p /run/php-fpm && \
+  sed -i "s/;date.timezone =.*/date.timezone = Australia\/Brisbane/" /etc/php.ini && \
+  sed -i "s/;cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/" /etc/php.ini && \
+  sed -i "s/display_errors =.*/display_errors = Off/" /etc/php.ini && \
+  sed -i "s/upload_max_filesize = 2M/upload_max_filesize = 30M/" /etc/php.ini && \
+  sed -i -e "s/daemonize\s*=\s*yes/daemonize = no/g" /etc/php-fpm.conf && \
+  sed -i "s/error_log =.*/error_log = \/proc\/self\/fd\/2/" /etc/php-fpm.conf && \
+  sed -i "s/;log_level = notice/log_level = warning/" /etc/php-fpm.conf && \
+  usermod -u 1000 nobody && \
+  curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin --filename=composer --version=${COMPOSER_VERSION}
 
 ADD fs /
 
-ENTRYPOINT ["docker-entrypoint.sh"]
-
 EXPOSE 9000
 
-WORKDIR /app
+ENV NSS_SDB_USE_CACHE YES
+ENTRYPOINT ["/usr/sbin/php-fpm", "-R", "--nodaemonize"]​
